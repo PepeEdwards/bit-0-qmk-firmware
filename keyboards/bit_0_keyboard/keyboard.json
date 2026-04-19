@@ -1,0 +1,87 @@
+{
+    "manufacturer": "PepeEdwards",
+    "keyboard_name": "bit_0_keyboard",
+    "maintainer": "PepeEdwards",
+    "bootloader": "rp2040",
+    "features": {
+        "bootmagic": true,
+        "extrakey": true,
+        "mousekey": true,
+        "nkro": true
+    },
+    "matrix_size": {
+        "cols": 7,
+        "rows": 8
+    },
+    "processor": "RP2040",
+    "url": "",
+    "usb": {
+        "device_version": "1.0.0",
+        "pid": "0x0001",
+        "vid": "0xFEED"
+    },
+    "layouts": {
+        "LAYOUT_bit0": {
+            "layout": [
+                {"label": "ESC",   "matrix": [4, 1], "x": 0, "y": 0},
+                {"label": "1",     "matrix": [5, 0], "x": 1, "y": 0},
+                {"label": "2",     "matrix": [4, 0], "x": 2, "y": 0},
+                {"label": "3",     "matrix": [3, 0], "x": 3, "y": 0},
+                {"label": "4",     "matrix": [0, 0], "x": 4, "y": 0},
+                {"label": "5",     "matrix": [0, 1], "x": 5, "y": 0},
+                {"label": "6",     "matrix": [0, 3], "x": 6, "y": 0},
+                {"label": "7",     "matrix": [0, 2], "x": 7, "y": 0},
+                {"label": "8",     "matrix": [0, 4], "x": 8, "y": 0},
+                {"label": "9",     "matrix": [0, 5], "x": 9, "y": 0},
+                {"label": "0",     "matrix": [0, 6], "x": 10, "y": 0},
+
+                {"label": "Q",     "matrix": [5, 1], "x": 0, "y": 1},
+                {"label": "W",     "matrix": [6, 0], "x": 1, "y": 1},
+                {"label": "E",     "matrix": [3, 1], "x": 2, "y": 1},
+                {"label": "R",     "matrix": [1, 0], "x": 3, "y": 1},
+                {"label": "T",     "matrix": [1, 1], "x": 4, "y": 1},
+                {"label": "Y",     "matrix": [1, 3], "x": 5, "y": 1},
+                {"label": "U",     "matrix": [1, 2], "x": 6, "y": 1},
+                {"label": "I",     "matrix": [1, 4], "x": 7, "y": 1},
+                {"label": "O",     "matrix": [1, 5], "x": 8, "y": 1},
+                {"label": "P",     "matrix": [1, 6], "x": 9, "y": 1},
+
+                {"label": "TAB",   "matrix": [4, 3], "x": 0, "y": 2, "w": 1.25},
+                {"label": "A",     "matrix": [6, 1], "x": 1.25, "y": 2},
+                {"label": "S",     "matrix": [6, 2], "x": 2.25, "y": 2},
+                {"label": "D",     "matrix": [3, 3], "x": 3.25, "y": 2},
+                {"label": "F",     "matrix": [2, 0], "x": 4.25, "y": 2},
+                {"label": "G",     "matrix": [2, 1], "x": 5.25, "y": 2},
+                {"label": "H",     "matrix": [2, 3], "x": 6.25, "y": 2},
+                {"label": "J",     "matrix": [6, 4], "x": 7.25, "y": 2},
+                {"label": "K",     "matrix": [6, 5], "x": 8.25, "y": 2},
+                {"label": "L",     "matrix": [2, 5], "x": 9.25, "y": 2},
+                {"label": "ENTER", "matrix": [2, 6], "x": 10.25, "y": 2, "w": 1.75},
+
+                {"label": "Z",     "matrix": [5, 3], "x": 0, "y": 3},
+                {"label": "X",     "matrix": [6, 3], "x": 1, "y": 3},
+                {"label": "C",     "matrix": [3, 2], "x": 2, "y": 3},
+                {"label": "V",     "matrix": [4, 4], "x": 3, "y": 3},
+                {"label": "B",     "matrix": [5, 4], "x": 4, "y": 3},
+                {"label": "N",     "matrix": [5, 5], "x": 5, "y": 3},
+                {"label": "M",     "matrix": [3, 5], "x": 6, "y": 3},
+                {"label": ",",     "matrix": [2, 2], "x": 7, "y": 3},
+                {"label": ".",     "matrix": [2, 4], "x": 8, "y": 3},
+
+                {"label": "FN",    "matrix": [5, 2], "x": 0, "y": 4},
+                {"label": "ALT",   "matrix": [4, 2], "x": 1, "y": 4},
+                {"label": "LSFT",  "matrix": [3, 4], "x": 2, "y": 4, "w": 1.5},
+                {"label": "SPC",   "matrix": [3, 6], "x": 3.5, "y": 4, "w": 3},
+                {"label": "RSFT",  "matrix": [5, 6], "x": 6.5, "y": 4, "w": 1.5},
+                {"label": "CTRL",  "matrix": [4, 5], "x": 8, "y": 4},
+                {"label": "BKSP",  "matrix": [4, 6], "x": 9, "y": 4},
+
+                {"label": "MS_L",  "matrix": [7, 3], "x": 0, "y": 5.5},
+                {"label": "MS_D",  "matrix": [7, 0], "x": 1, "y": 5.5},
+                {"label": "MS_U",  "matrix": [7, 1], "x": 2, "y": 5.5},
+                {"label": "MS_R",  "matrix": [7, 2], "x": 3, "y": 5.5},
+                {"label": "MS_CLK","matrix": [6, 6], "x": 4, "y": 5.5}
+            ]
+        }
+    }
+}
