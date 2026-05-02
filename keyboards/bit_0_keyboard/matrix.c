@@ -4,6 +4,7 @@
 #include "matrix.h"
 #include "gpio.h"
 #include "wait.h"
+#include "power_latch.h"
 
 // 6x7 physical matrix: COL2ROW (columns are read, rows are driven)
 static const pin_t col_pins[7] = {GP12, GP13, GP14, GP15, GP16, GP17, GP18};
@@ -15,6 +16,8 @@ static const pin_t direct_row6[7] = {GP19, GP20, GP21, GP22, GP3, GP4, GP5};
 static const pin_t direct_row7[4] = {GP6, GP23, GP24, GP25};
 
 void matrix_init_custom(void) {
+    power_latch_init(GP29);
+
     for (int c = 0; c < 7; c++) {
         gpio_set_pin_input_high(col_pins[c]);
     }

@@ -1,2 +1,3 @@
 CUSTOM_MATRIX = lite
-SRC += matrix.c
+UART_DRIVER_REQUIRED = yes
+SRC += matrix.c power_latch.c uart_hid.c
