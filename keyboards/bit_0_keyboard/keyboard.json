@@ -7,7 +7,7 @@
         "bootmagic": true,
         "extrakey": true,
         "mousekey": true,
-        "nkro": true,
+        "nkro": false,
         "rgblight": true
     },
     "rgblight": {

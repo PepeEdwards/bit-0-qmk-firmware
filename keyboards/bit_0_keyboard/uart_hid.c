@@ -23,7 +23,12 @@ static uint8_t uart_hid_keyboard_leds(void) {
 
 static void uart_hid_send_keyboard(report_keyboard_t *report) {
     if (usb_connected_state()) usb_driver->send_keyboard(report);
-    send_frame(UART_HID_TYPE_KBD, report, sizeof(report_keyboard_t));
+#ifdef KEYBOARD_SHARED_EP
+    // Skip the leading report_id byte; bridge expects a bare 8-byte boot report
+    send_frame(UART_HID_TYPE_KBD, &report->mods, 8);
+#else
+    send_frame(UART_HID_TYPE_KBD, report, 8);
+#endif
 }
 
 static void uart_hid_send_nkro(report_nkro_t *report) {

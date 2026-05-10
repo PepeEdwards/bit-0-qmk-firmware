@@ -75,6 +75,16 @@ void post_process_record_user(uint16_t keycode, keyrecord_t *record) {
 }
 
 void keyboard_post_init_user(void) {
+    // GPIO blink test: toggles GP0 for 30s before UART init.
+    // Flash this, then run pin_monitor.py on the Lyra during the 30s window.
+    gpio_set_pin_output(GP0);
+    for (int i = 0; i < 9000; i++) {
+        gpio_write_pin_low(GP0);
+        wait_ms(2);
+        gpio_write_pin_high(GP0);
+        wait_ms(2);
+    }
+
     uart_hid_init();
     rgblight_enable_noeeprom();
     update_led(layer_state);
