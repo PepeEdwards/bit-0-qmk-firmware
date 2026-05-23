@@ -75,23 +75,48 @@ void post_process_record_user(uint16_t keycode, keyrecord_t *record) {
 }
 
 void keyboard_post_init_user(void) {
-    // GPIO blink test: toggles GP0 for 30s before UART init.
-    // Flash this, then run pin_monitor.py on the Lyra during the 30s window.
-    gpio_set_pin_output(GP0);
-    for (int i = 0; i < 9000; i++) {
-        gpio_write_pin_low(GP0);
-        wait_ms(2);
-        gpio_write_pin_high(GP0);
-        wait_ms(2);
-    }
-
-    uart_hid_init();
+    // uart_hid_init() is NOT called here. main.c runs keyboard_init() then
+    // protocol_post_init(), and protocol_post_init() calls
+    // host_set_driver(&chibios_driver) which would immediately override any
+    // driver we install here. We defer to housekeeping_task_user() which runs
+    // inside the main loop, after protocol_post_init() has already executed.
     rgblight_enable_noeeprom();
-    update_led(layer_state);
+    rgblight_sethsv_noeeprom(30, 255, led_brightness);  // amber: waiting
 }
 
 void housekeeping_task_user(void) {
+    static bool driver_installed = false;
+    if (!driver_installed) {
+        uart_hid_init();   // installs UART driver after protocol_post_init() ran
+        driver_installed = true;
+    }
+
     power_latch_task();
+
+    switch (uart_hid_task()) {
+        case 2:
+            // READY beacon received (or 90 s fallback): flash green 3×.
+            for (int i = 0; i < 3; i++) {
+                rgblight_sethsv_noeeprom(85, 255, 200);
+                wait_ms(150);
+                rgblight_sethsv_noeeprom(85, 255, 0);
+                wait_ms(150);
+            }
+            update_led(layer_state);
+            break;
+        case 1:
+            // Before ready: brief cyan confirms UART RX is alive.
+            // After ready: stale beacon re-transmissions arrive (Lyra resends
+            // every 5 s); just ignore them so the green layer colour holds.
+            if (!uart_hid_is_ready()) {
+                rgblight_sethsv_noeeprom(128, 255, 150);
+                wait_ms(40);
+                rgblight_sethsv_noeeprom(30, 255, led_brightness);
+            }
+            break;
+        default:
+            break;
+    }
 }
 
 const uint16_t PROGMEM keymaps[][MATRIX_ROWS][MATRIX_COLS] = {

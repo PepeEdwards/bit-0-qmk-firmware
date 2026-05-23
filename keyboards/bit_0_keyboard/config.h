@@ -20,9 +20,13 @@
 // Allow keyboard to run without a USB host (UART-only mode)
 #define NO_USB_STARTUP_CHECK
 
-// UART configuration (UART0: GP0=TX, GP1=RX, function select 2)
+// UART configuration (UART0: GP0=TX, GP1=RX)
+// UART_TX_PAL_MODE 2 = raw FUNCSEL only — fine for TX output (no IE needed).
+// UART_RX_PAL_MODE must NOT be overridden here: chibios_config.h sets it to
+// PAL_MODE_ALTERNATE_UART which includes PAL_RP_PAD_IE (bit 30). Without IE,
+// the RP2040 PADS_BANK0.IE register bit is 0 and the input buffer is disabled —
+// the UART RX FIFO never receives a single byte regardless of what is wired to GP1.
 #define UART_DRIVER      SIOD0
 #define UART_TX_PIN      GP0
 #define UART_TX_PAL_MODE 2
 #define UART_RX_PIN      GP1
-#define UART_RX_PAL_MODE 2

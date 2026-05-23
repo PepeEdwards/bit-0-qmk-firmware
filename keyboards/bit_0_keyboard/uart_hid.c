@@ -7,10 +7,106 @@
 #include "host_driver.h"
 #include "report.h"
 #include "usb_util.h"
+#include "timer.h"
+#include <hal.h>  // chnGetTimeout / TIME_IMMEDIATE / STM_TIMEOUT (ChibiOS)
 
 static const host_driver_t *usb_driver;
 
+// HID frames are held until the Lyra bridge sends UART_HID_TYPE_READY.
+static bool lyra_ready = false;
+
+// ── RX parser ────────────────────────────────────────────────────────────────
+// Minimal 3-state machine: wait for magic → read type → skip payload bytes.
+// Only acts on UART_HID_TYPE_READY; all other incoming frame types are ignored.
+
+typedef enum { RX_MAGIC = 0, RX_TYPE, RX_LEN, RX_PAYLOAD } rx_state_t;
+
+static rx_state_t rx_state   = RX_MAGIC;
+static uint8_t    rx_type    = 0;
+static uint8_t    rx_remain  = 0;
+static uint32_t   init_time  = 0;
+
+#define LYRA_READY_TIMEOUT_MS 90000  // auto-enable after 90 s if no beacon
+
+bool uart_hid_is_ready(void) { return lyra_ready; }
+
+int uart_hid_task(void) {
+    int status = 0;
+
+    // sioSynchronizeRX (called internally by chnGetTimeout / uart_read) checks
+    // error flags BEFORE checking the FIFO and loops forever returning
+    // SIO_MSG_ERRORS if any framing/overrun bits are set — which happens
+    // routinely from line noise on a floating RX pin at boot.
+    //
+    // Fix: clear those stale error flags here so they don't block anything,
+    // then read with uart_available() + sioGetX():
+    //   uart_available() → sioIsRXEmptyX → reads UARTFR.RXFE hardware register
+    //   sioGetX()        → sio_lld_get   → reads UARTDR hardware register
+    // Both are direct register reads that bypass the OS event/error system.
+    if (sioHasRXErrorsX(&UART_DRIVER)) {
+        sioGetAndClearErrors(&UART_DRIVER);
+    }
+
+    while (uart_available()) {
+        uint8_t b = (uint8_t)sioGetX(&UART_DRIVER);
+        status = 1;
+
+        switch (rx_state) {
+            case RX_MAGIC:
+                if (b == UART_HID_MAGIC) rx_state = RX_TYPE;
+                break;
+            case RX_TYPE:
+                rx_type  = b;
+                rx_state = RX_LEN;
+                break;
+            case RX_LEN:
+                rx_remain = b;
+                if (rx_remain == 0) {
+                    if (rx_type == UART_HID_TYPE_READY && !lyra_ready) {
+                        lyra_ready = true;
+                        status     = 2;
+                    }
+                    rx_state = RX_MAGIC;
+                } else {
+                    rx_state = RX_PAYLOAD;
+                }
+                break;
+            case RX_PAYLOAD:
+                if (--rx_remain == 0) {
+                    if (rx_type == UART_HID_TYPE_READY && !lyra_ready) {
+                        lyra_ready = true;
+                        status     = 2;
+                    }
+                    rx_state = RX_MAGIC;
+                }
+                break;
+        }
+    }
+
+    // TX heartbeat while waiting: send 0xAA 0xFE 0x00 every 2 s so the Lyra
+    // can confirm RP2040→Lyra direction works independently of the beacon.
+    if (!lyra_ready) {
+        static uint32_t last_hello = 0;
+        if (timer_elapsed32(last_hello) >= 2000) {
+            uart_write(UART_HID_MAGIC);
+            uart_write(0xFE);  // TYPE_HELLO — not a defined HID report
+            uart_write(0x00);
+            last_hello = timer_read32();
+        }
+    }
+
+    // 90 s fallback: auto-enable if beacon never arrives.
+    if (!lyra_ready && timer_elapsed32(init_time) >= LYRA_READY_TIMEOUT_MS) {
+        lyra_ready = true;
+        status     = 2;
+    }
+
+    return status;
+}
+// ─────────────────────────────────────────────────────────────────────────────
+
 static void send_frame(uint8_t type, const void *payload, uint8_t len) {
+    if (!lyra_ready) return;  // hold until bridge signals it is up
     uart_write(UART_HID_MAGIC);
     uart_write(type);
     uart_write(len);
@@ -56,6 +152,7 @@ static host_driver_t uart_hid_driver = {
 
 void uart_hid_init(void) {
     uart_init(UART_HID_BAUD);
+    init_time  = timer_read32();
     usb_driver = host_get_driver();
     host_set_driver(&uart_hid_driver);
 }
