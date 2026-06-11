@@ -4,6 +4,7 @@
 #include QMK_KEYBOARD_H
 #include "power_latch.h"
 #include "uart_hid.h"
+#include "battery_monitor.h"
 
 enum layers {
     _BASE,
@@ -20,18 +21,39 @@ enum custom_keycodes {
 #define BRT_STEP 25
 #define BRT_MIN  10
 
+// LED color hues (HSV, saturation always 255)
+#define HUE_GREEN   85   // base layer / battery high / full
+#define HUE_ORANGE  21   // battery mid
+#define HUE_RED      0   // battery low / critical
+#define HUE_CYAN   128   // shift active
+#define HUE_PURPLE 191   // _MEDIA layer
+#define HUE_BLUE   170   // _FN layer
+
 static uint8_t led_brightness = 200;
 
 static void update_led(layer_state_t state) {
     bool shift_on = (get_mods() | get_oneshot_mods()) & MOD_MASK_SHIFT;
     if (shift_on) {
-        rgblight_sethsv_noeeprom(43, 255, led_brightness); // orange
+        rgblight_sethsv_noeeprom(HUE_CYAN,   255, led_brightness);
     } else if (get_highest_layer(state) == _MEDIA) {
-        rgblight_sethsv_noeeprom(231,   255, led_brightness); // red
+        rgblight_sethsv_noeeprom(HUE_PURPLE, 255, led_brightness);
     } else if (get_highest_layer(state) == _FN) {
-        rgblight_sethsv_noeeprom(170, 255, led_brightness); // blue
+        rgblight_sethsv_noeeprom(HUE_BLUE,   255, led_brightness);
     } else {
-        rgblight_sethsv_noeeprom(85,  255, led_brightness); // green
+        switch (battery_get_status()) {
+            case BATT_HIGH:
+            case BATT_FULL:
+                rgblight_sethsv_noeeprom(HUE_GREEN,  255, led_brightness); break;
+            case BATT_MID:
+                rgblight_sethsv_noeeprom(HUE_ORANGE, 255, led_brightness); break;
+            case BATT_CHARGING:
+                rgblight_sethsv_noeeprom(0, 0, led_brightness); break;
+            case BATT_LOW:
+            case BATT_CRITICAL:
+                rgblight_sethsv_noeeprom(HUE_RED,    255, led_brightness); break;
+            default:
+                rgblight_sethsv_noeeprom(HUE_GREEN,  255, led_brightness); break;
+        }
     }
 }
 
@@ -80,8 +102,10 @@ void keyboard_post_init_user(void) {
     // host_set_driver(&chibios_driver) which would immediately override any
     // driver we install here. We defer to housekeeping_task_user() which runs
     // inside the main loop, after protocol_post_init() has already executed.
+    power_latch_init(GP29);
+    battery_monitor_init();
     rgblight_enable_noeeprom();
-    rgblight_sethsv_noeeprom(30, 255, led_brightness);  // amber: waiting
+    rgblight_sethsv_noeeprom(0, 0, led_brightness); // white: waiting for Lyra
 }
 
 void housekeeping_task_user(void) {
@@ -91,15 +115,45 @@ void housekeeping_task_user(void) {
         driver_installed = true;
     }
 
-    power_latch_task();
+    bool batt_changed      = battery_monitor_task();
+    int  pl                = power_latch_task();
+    static bool was_held   = false;
+
+    if (pl) {
+        was_held = true;
+        // blink red once per second: 150 ms on, 850 ms off
+        uint8_t v = (timer_read32() % 1000) < 150 ? led_brightness : 0;
+        rgblight_sethsv_noeeprom(HUE_RED, 255, v);
+    } else {
+        if (was_held) {
+            was_held = false;
+            update_led(layer_state); // restore after release
+        } else if (batt_changed) {
+            update_led(layer_state);
+        }
+
+        // Pulse red when battery is critical and base layer is active
+        bool shift_on = (get_mods() | get_oneshot_mods()) & MOD_MASK_SHIFT;
+        if (!shift_on && get_highest_layer(layer_state) == _BASE && battery_get_status() == BATT_CRITICAL) {
+            static uint32_t pulse_timer = 0;
+            if (timer_elapsed32(pulse_timer) >= 20) {
+                pulse_timer      = timer_read32();
+                uint32_t t       = timer_read32() % 2000;
+                uint8_t  v       = (t < 1000)
+                                   ? (uint8_t)((uint32_t)t * led_brightness / 1000)
+                                   : (uint8_t)((uint32_t)(2000 - t) * led_brightness / 1000);
+                rgblight_sethsv_noeeprom(HUE_RED, 255, v);
+            }
+        }
+    }
 
     switch (uart_hid_task()) {
         case 2:
             // READY beacon received (or 90 s fallback): flash green 3×.
             for (int i = 0; i < 3; i++) {
-                rgblight_sethsv_noeeprom(85, 255, 200);
+                rgblight_sethsv_noeeprom(HUE_GREEN, 255, 200);
                 wait_ms(150);
-                rgblight_sethsv_noeeprom(85, 255, 0);
+                rgblight_sethsv_noeeprom(HUE_GREEN, 255, 0);
                 wait_ms(150);
             }
             update_led(layer_state);
@@ -107,11 +161,11 @@ void housekeeping_task_user(void) {
         case 1:
             // Before ready: brief cyan confirms UART RX is alive.
             // After ready: stale beacon re-transmissions arrive (Lyra resends
-            // every 5 s); just ignore them so the green layer colour holds.
+            // every 5 s); just ignore them so the layer colour holds.
             if (!uart_hid_is_ready()) {
-                rgblight_sethsv_noeeprom(128, 255, 150);
+                rgblight_sethsv_noeeprom(HUE_CYAN, 255, 150);
                 wait_ms(40);
-                rgblight_sethsv_noeeprom(30, 255, led_brightness);
+                rgblight_sethsv_noeeprom(0, 0, led_brightness); // back to white while waiting
             }
             break;
         default:

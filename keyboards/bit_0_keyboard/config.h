@@ -30,3 +30,9 @@
 #define UART_TX_PIN      GP0
 #define UART_TX_PAL_MODE 2
 #define UART_RX_PIN      GP1
+
+// I2C1 configuration (battery monitor via IP5306 at 0x75)
+// RP2040 I2C1 peripheral → chibios-contrib I2CD1 (RP port: I2C0→I2CD0, I2C1→I2CD1)
+#define I2C_DRIVER    I2CD1
+#define I2C1_SDA_PIN  GP26
+#define I2C1_SCL_PIN  GP27
