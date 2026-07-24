@@ -1,0 +1,60 @@
+name: Build firmware
+
+on:
+  push:
+  pull_request:
+  workflow_dispatch:   # allow manual runs from the Actions tab
+
+permissions:
+  contents: write      # required for the release job to publish firmware
+
+jobs:
+  build:
+    name: Compile bit_0_keyboard:default
+    runs-on: ubuntu-latest
+    container: ghcr.io/qmk/qmk_cli   # official QMK image: qmk CLI + ARM toolchain
+    steps:
+      # The container runs as a different user than the checkout owner, so git
+      # refuses to operate on the tree until it is marked safe.
+      - name: Disable safe.directory check
+        run: git config --global --add safe.directory '*'
+
+      # Pulls this repo AND the qmk_firmware submodule (+ its nested deps:
+      # chibios, pico-sdk, lufa, ...). This is a large checkout and is the
+      # slowest step by far.
+      - name: Checkout (with qmk_firmware submodule)
+        uses: actions/checkout@v4
+        with:
+          submodules: recursive
+
+      # build.sh is self-healing: it re-creates the keyboard symlink into
+      # qmk_firmware and compiles via QMK_HOME (no global qmk config needed).
+      - name: Build firmware
+        run: ./build.sh
+
+      # build.sh runs `qmk compile` from the repo root, so QMK drops the .uf2
+      # here at the repo root (not inside qmk_firmware/).
+      - name: Upload firmware artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: bit_0_keyboard_default
+          path: bit_0_keyboard_default.uf2
+          if-no-files-found: error
+
+  # On a pushed tag (e.g. `git tag v1.0 && git push --tags`), attach the
+  # compiled firmware to a GitHub Release so it can be downloaded and flashed.
+  release:
+    name: Publish firmware release
+    needs: build
+    if: startsWith(github.ref, 'refs/tags/')
+    runs-on: ubuntu-latest
+    steps:
+      - name: Download built firmware
+        uses: actions/download-artifact@v4
+        with:
+          name: bit_0_keyboard_default
+
+      - name: Create release
+        uses: softprops/action-gh-release@v2
+        with:
+          files: bit_0_keyboard_default.uf2
